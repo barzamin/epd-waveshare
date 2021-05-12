@@ -23,7 +23,7 @@ use linux_embedded_hal::{CdevPin, Delay, Spidev, gpio_cdev::{Chip, LineRequestFl
 fn main() -> Result<(), std::io::Error> {
     // Configure SPI
     // Settings are taken from
-    let mut spi = Spidev::open("/dev/spidev0.1").expect("spidev directory");
+    let mut spi = Spidev::open("/dev/spidev0.0").expect("spidev directory");
     let options = SpidevOptions::new()
         .bits_per_word(8)
         .max_speed_hz(4_000_000)
