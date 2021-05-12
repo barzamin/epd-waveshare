@@ -10,6 +10,13 @@ A 2018-edition compatible version (Rust 1.31+) is needed.
 Other similar libraries with support for much more displays are [u8g2](https://github.com/olikraus/u8g2)
 and [GxEPD](https://github.com/ZinggJM/GxEPD) for arduino.
 
+## Notes for recent Raspberry Pi dtoverlays
+SPI dtoverlays manage the CS pin on their own. As such, we can't acquire it to manually manage transaction timing. To get around this, simply map the SPI0 driver-managed CS pin to an unused GPIO in `config.txt`, _ex_:
+```
+# ... somewhere near the end ...
+dtoverlay=spi0-1cs,cs0_pin=7
+```
+
 ## Examples
 
 There are multiple examples in the examples folder. Use `cargo run --example example_name` to try them.
