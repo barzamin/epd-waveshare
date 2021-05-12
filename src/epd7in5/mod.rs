@@ -69,7 +69,7 @@ where
         // Power on
         self.command(spi, Command::PowerOn)?;
         delay.try_delay_ms(5).map_err(Error::DelayError)?;
-        self.wait_until_idle();
+        self.wait_until_idle()?;
 
         // Set the clock frequency to 50Hz (default)
         self.cmd_with_data(spi, Command::PllControl, &[0x3C])?;
@@ -92,7 +92,7 @@ where
         // This is in all the Waveshare controllers for Epd7in5
         self.cmd_with_data(spi, Command::FlashMode, &[0x03])?;
 
-        self.wait_until_idle();
+        self.wait_until_idle()?;
         Ok(())
     }
 }
@@ -131,9 +131,9 @@ where
     }
 
     fn sleep(&mut self, spi: &mut SPI, _delay: &mut DELAY) -> Result<(), Error<S, P, DELAY::Error>> {
-        self.wait_until_idle();
+        self.wait_until_idle()?;
         self.command(spi, Command::PowerOff)?;
-        self.wait_until_idle();
+        self.wait_until_idle()?;
         self.cmd_with_data(spi, Command::DeepSleep, &[0xA5])?;
         Ok(())
     }
@@ -144,7 +144,7 @@ where
         buffer: &[u8],
         _delay: &mut DELAY,
     ) -> Result<(), Error<S, P, DELAY::Error>> {
-        self.wait_until_idle();
+        self.wait_until_idle()?;
         self.command(spi, Command::DataStartTransmission1)?;
         for byte in buffer {
             let mut temp = *byte;
@@ -173,7 +173,7 @@ where
     }
 
     fn display_frame(&mut self, spi: &mut SPI, _delay: &mut DELAY) -> Result<(), Error<S, P, DELAY::Error>> {
-        self.wait_until_idle();
+        self.wait_until_idle()?;
         self.command(spi, Command::DisplayRefresh)?;
         Ok(())
     }
@@ -190,7 +190,7 @@ where
     }
 
     fn clear_frame(&mut self, spi: &mut SPI, _delay: &mut DELAY) -> Result<(), Error<S, P, DELAY::Error>> {
-        self.wait_until_idle();
+        self.wait_until_idle()?;
         self.send_resolution(spi)?;
 
         // The Waveshare controllers all implement clear using 0x33
@@ -255,8 +255,8 @@ where
         self.interface.cmd_with_data(spi, command, data)
     }
 
-    fn wait_until_idle(&mut self) {
-        let _ = self.interface.wait_until_idle(IS_BUSY_LOW);
+    fn wait_until_idle(&mut self) -> Result<(), Error<S, P, DELAY::Error>> {
+        self.interface.wait_until_idle(IS_BUSY_LOW)
     }
 
     fn send_resolution(&mut self, spi: &mut SPI) -> Result<(), Error<S, P, DELAY::Error>> {

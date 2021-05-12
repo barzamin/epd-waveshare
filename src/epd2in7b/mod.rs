@@ -60,7 +60,7 @@ where
         // power on
         self.command(spi, Command::PowerOn)?;
         delay.try_delay_ms(5).map_err(Error::DelayError)?;
-        self.wait_until_idle();
+        self.wait_until_idle()?;
 
         // set panel settings, 0xbf is bw, 0xaf is multi-color
         self.interface
@@ -104,7 +104,7 @@ where
         self.interface
             .cmd_with_data(spi, Command::PartialDisplayRefresh, &[0x00])?;
 
-        self.wait_until_idle();
+        self.wait_until_idle()?;
         Ok(())
     }
 }
@@ -143,12 +143,12 @@ where
     }
 
     fn sleep(&mut self, spi: &mut SPI, _delay: &mut DELAY) -> Result<(), Error<S, P, DELAY::Error>> {
-        self.wait_until_idle();
+        self.wait_until_idle()?;
         self.interface
             .cmd_with_data(spi, Command::VcomAndDataIntervalSetting, &[0xf7])?;
 
         self.command(spi, Command::PowerOff)?;
-        self.wait_until_idle();
+        self.wait_until_idle()?;
         self.interface
             .cmd_with_data(spi, Command::DeepSleep, &[0xA5])?;
         Ok(())
@@ -192,7 +192,7 @@ where
         self.send_data(spi, &[(width & 0xf8) as u8])?;
         self.send_data(spi, &[(height >> 8) as u8])?;
         self.send_data(spi, &[(height & 0xff) as u8])?;
-        self.wait_until_idle();
+        self.wait_until_idle()?;
 
         self.send_buffer_helper(spi, buffer)?;
 
@@ -201,7 +201,7 @@ where
 
     fn display_frame(&mut self, spi: &mut SPI, _delay: &mut DELAY) -> Result<(), Error<S, P, DELAY::Error>> {
         self.command(spi, Command::DisplayRefresh)?;
-        self.wait_until_idle();
+        self.wait_until_idle()?;
         Ok(())
     }
 
@@ -217,7 +217,7 @@ where
     }
 
     fn clear_frame(&mut self, spi: &mut SPI, _delay: &mut DELAY) -> Result<(), Error<S, P, DELAY::Error>> {
-        self.wait_until_idle();
+        self.wait_until_idle()?;
 
         let color_value = self.color.get_byte_value();
         self.interface.cmd(spi, Command::DataStartTransmission1)?;
@@ -254,7 +254,7 @@ where
         spi: &mut SPI,
         _refresh_rate: Option<RefreshLut>,
     ) -> Result<(), Error<S, P, DELAY::Error>> {
-        self.wait_until_idle();
+        self.wait_until_idle()?;
         self.cmd_with_data(spi, Command::LutForVcom, &LUT_VCOM_DC)?;
         self.cmd_with_data(spi, Command::LutWhiteToWhite, &LUT_WW)?;
         self.cmd_with_data(spi, Command::LutBlackToWhite, &LUT_BW)?;
@@ -316,7 +316,7 @@ where
         self.send_buffer_helper(spi, chromatic)?;
 
         self.interface.cmd(spi, Command::DataStop)?;
-        self.wait_until_idle();
+        self.wait_until_idle()?;
 
         Ok(())
     }
@@ -357,8 +357,8 @@ where
         self.interface.cmd_with_data(spi, command, data)
     }
 
-    fn wait_until_idle(&mut self) {
-        let _ = self.interface.wait_until_idle(IS_BUSY_LOW);
+    fn wait_until_idle(&mut self) -> Result<(), Error<S, P, DELAY::Error>> {
+        self.interface.wait_until_idle(IS_BUSY_LOW)
     }
 
     /// Refresh display for partial frame
@@ -379,7 +379,7 @@ where
         self.send_data(spi, &[(width & 0xf8) as u8])?;
         self.send_data(spi, &[(height >> 8) as u8])?;
         self.send_data(spi, &[(height & 0xff) as u8])?;
-        self.wait_until_idle();
+        self.wait_until_idle()?;
         Ok(())
     }
 
@@ -403,7 +403,7 @@ where
         self.send_data(spi, &[(width & 0xf8) as u8])?;
         self.send_data(spi, &[(height >> 8) as u8])?;
         self.send_data(spi, &[(height & 0xff) as u8])?;
-        self.wait_until_idle();
+        self.wait_until_idle()?;
 
         for b in achromatic.iter() {
             // Flipping based on waveshare implementation
@@ -433,7 +433,7 @@ where
         self.send_data(spi, &[(width & 0xf8) as u8])?;
         self.send_data(spi, &[(height >> 8) as u8])?;
         self.send_data(spi, &[(height & 0xff) as u8])?;
-        self.wait_until_idle();
+        self.wait_until_idle()?;
 
         for b in chromatic.iter() {
             // Flipping based on waveshare implementation

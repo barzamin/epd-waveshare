@@ -63,7 +63,7 @@ where
         // power on
         self.command(spi, Command::PowerOn)?;
         delay.try_delay_ms(5).map_err(Error::<S, P, DELAY::Error>::DelayError)?;
-        self.wait_until_idle();
+        self.wait_until_idle()?;
 
         // set the panel settings
         self.cmd_with_data(spi, Command::PanelSetting, &[0xCF])?;
@@ -80,7 +80,7 @@ where
 
         self.set_lut(spi, None)?;
 
-        self.wait_until_idle();
+        self.wait_until_idle()?;
 
         Ok(())
     }
@@ -107,7 +107,7 @@ where
     }
 
     fn update_achromatic_frame(&mut self, spi: &mut SPI, black: &[u8]) -> Result<(), Error<S, P, DELAY::Error>> {
-        self.wait_until_idle();
+        self.wait_until_idle()?;
         self.send_resolution(spi)?;
 
         self.interface.cmd(spi, Command::DataStartTransmission1)?;
@@ -160,7 +160,7 @@ where
     }
 
     fn sleep(&mut self, spi: &mut SPI, _delay: &mut DELAY) -> Result<(), Error<S, P, DELAY::Error>> {
-        self.wait_until_idle();
+        self.wait_until_idle()?;
         self.interface
             .cmd_with_data(spi, Command::VcomAndDataIntervalSetting, &[0x17])?; //border floating
 
@@ -170,7 +170,7 @@ where
         self.interface
             .cmd_with_data(spi, Command::PowerSetting, &[0x02, 0x00, 0x00, 0x00])?; //VG&VS to 0V fast
 
-        self.wait_until_idle();
+        self.wait_until_idle()?;
 
         //NOTE: The example code has a 1s delay here
 
@@ -205,7 +205,7 @@ where
         buffer: &[u8],
         _delay: &mut DELAY,
     ) -> Result<(), Error<S, P, DELAY::Error>> {
-        self.wait_until_idle();
+        self.wait_until_idle()?;
         self.send_resolution(spi)?;
 
         self.interface.cmd(spi, Command::DataStartTransmission1)?;
@@ -243,7 +243,7 @@ where
     }
 
     fn display_frame(&mut self, spi: &mut SPI, _delay: &mut DELAY) -> Result<(), Error<S, P, DELAY::Error>> {
-        self.wait_until_idle();
+        self.wait_until_idle()?;
         self.command(spi, Command::DisplayRefresh)?;
         Ok(())
     }
@@ -260,7 +260,7 @@ where
     }
 
     fn clear_frame(&mut self, spi: &mut SPI, _delay: &mut DELAY) -> Result<(), Error<S, P, DELAY::Error>> {
-        self.wait_until_idle();
+        self.wait_until_idle()?;
         self.send_resolution(spi)?;
 
         let color = DEFAULT_BACKGROUND_COLOR.get_byte_value();
@@ -333,8 +333,8 @@ where
         self.interface.cmd_with_data(spi, command, data)
     }
 
-    fn wait_until_idle(&mut self) {
-        let _ = self.interface.wait_until_idle(IS_BUSY_LOW);
+    fn wait_until_idle(&mut self) -> Result<(), Error<S, P, DELAY::Error>> {
+        self.interface.wait_until_idle(IS_BUSY_LOW)
     }
 
     fn send_resolution(&mut self, spi: &mut SPI) -> Result<(), Error<S, P, DELAY::Error>> {

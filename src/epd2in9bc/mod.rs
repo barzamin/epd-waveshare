@@ -118,7 +118,7 @@ where
         // power on
         self.command(spi, Command::PowerOn)?;
         delay.try_delay_ms(5).map_err(Error::DelayError)?;
-        self.wait_until_idle();
+        self.wait_until_idle()?;
 
         // set the panel settings
         self.cmd_with_data(spi, Command::PanelSetting, &[0x8F])?;
@@ -134,7 +134,7 @@ where
 
         self.cmd_with_data(spi, Command::VcmDcSetting, &[0x0A])?;
 
-        self.wait_until_idle();
+        self.wait_until_idle()?;
 
         Ok(())
     }
@@ -180,7 +180,7 @@ where
         self.interface.cmd(spi, Command::DataStartTransmission2)?;
         self.interface.data(spi, chromatic)?;
 
-        self.wait_until_idle();
+        self.wait_until_idle()?;
         Ok(())
     }
 }
@@ -224,7 +224,7 @@ where
 
         self.command(spi, Command::PowerOff)?;
         // The example STM code from Github has a wait after PowerOff
-        self.wait_until_idle();
+        self.wait_until_idle()?;
 
         self.cmd_with_data(spi, Command::DeepSleep, &[0xA5])?;
 
@@ -267,7 +267,7 @@ where
         self.interface.cmd(spi, Command::DataStartTransmission2)?;
         self.interface.data_x_times(spi, color, NUM_DISPLAY_BITS)?;
 
-        self.wait_until_idle();
+        self.wait_until_idle()?;
         Ok(())
     }
 
@@ -287,7 +287,7 @@ where
     fn display_frame(&mut self, spi: &mut SPI, _delay: &mut DELAY) -> Result<(), Error<S, P, DELAY::Error>> {
         self.command(spi, Command::DisplayRefresh)?;
 
-        self.wait_until_idle();
+        self.wait_until_idle()?;
         Ok(())
     }
 
@@ -316,7 +316,7 @@ where
         self.interface.cmd(spi, Command::DataStartTransmission2)?;
         self.interface.data_x_times(spi, color, NUM_DISPLAY_BITS)?;
 
-        self.wait_until_idle();
+        self.wait_until_idle()?;
         Ok(())
     }
 
@@ -359,8 +359,8 @@ where
         self.interface.cmd_with_data(spi, command, data)
     }
 
-    fn wait_until_idle(&mut self) {
-        let _ = self.interface.wait_until_idle(IS_BUSY_LOW);
+    fn wait_until_idle(&mut self) -> Result<(), Error<S, P, DELAY::Error>> {
+        self.interface.wait_until_idle(IS_BUSY_LOW)
     }
 
     fn send_resolution(&mut self, spi: &mut SPI) -> Result<(), Error<S, P, DELAY::Error>> {

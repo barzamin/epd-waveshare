@@ -92,7 +92,7 @@ where
     fn init(&mut self, spi: &mut SPI, delay: &mut DELAY) -> Result<(), Error<S, P, DELAY::Error>> {
         self.interface.reset(delay, 10)?;
 
-        self.wait_until_idle();
+        self.wait_until_idle()?;
 
         // 3 Databytes:
         // A[7:0]
@@ -172,7 +172,7 @@ where
     }
 
     fn sleep(&mut self, spi: &mut SPI, _delay: &mut DELAY) -> Result<(), Error<S, P, DELAY::Error>> {
-        self.wait_until_idle();
+        self.wait_until_idle()?;
         // 0x00 for Normal mode (Power on Reset), 0x01 for Deep Sleep Mode
         //TODO: is 0x00 needed here? (see also epd1in54)
         self.interface
@@ -181,7 +181,7 @@ where
     }
 
     fn wake_up(&mut self, spi: &mut SPI, delay: &mut DELAY) -> Result<(), Error<S, P, DELAY::Error>> {
-        self.wait_until_idle();
+        self.wait_until_idle()?;
         self.init(spi, delay)?;
         Ok(())
     }
@@ -192,7 +192,7 @@ where
         buffer: &[u8],
         _delay: &mut DELAY,
     ) -> Result<(), Error<S, P, DELAY::Error>> {
-        self.wait_until_idle();
+        self.wait_until_idle()?;
         self.use_full_frame(spi)?;
 
         self.interface
@@ -210,7 +210,7 @@ where
         width: u32,
         height: u32,
     ) -> Result<(), Error<S, P, DELAY::Error>> {
-        self.wait_until_idle();
+        self.wait_until_idle()?;
         self.set_ram_area(spi, x, y, x + width, y + height)?;
         self.set_ram_counter(spi, x, y)?;
 
@@ -220,7 +220,7 @@ where
     }
 
     fn display_frame(&mut self, spi: &mut SPI, _delay: &mut DELAY) -> Result<(), Error<S, P, DELAY::Error>> {
-        self.wait_until_idle();
+        self.wait_until_idle()?;
         // enable clock signal, enable cp, display pattern -> 0xC4 (tested with the arduino version)
         //TODO: test control_1 or control_2 with default value 0xFF (from the datasheet)
         self.interface
@@ -245,7 +245,7 @@ where
     }
 
     fn clear_frame(&mut self, spi: &mut SPI, _delay: &mut DELAY) -> Result<(), Error<S, P, DELAY::Error>> {
-        self.wait_until_idle();
+        self.wait_until_idle()?;
         self.use_full_frame(spi)?;
 
         // clear the ram with the background color
@@ -293,8 +293,8 @@ where
     RST: OutputPin<Error=P>,
     DELAY: DelayMs<u8>,
 {
-    fn wait_until_idle(&mut self) {
-        let _ = self.interface.wait_until_idle(IS_BUSY_LOW);
+    fn wait_until_idle(&mut self) -> Result<(), Error<S, P, DELAY::Error>> {
+        self.interface.wait_until_idle(IS_BUSY_LOW)
     }
 
     fn use_full_frame(&mut self, spi: &mut SPI) -> Result<(), Error<S, P, DELAY::Error>> {
@@ -338,7 +338,7 @@ where
     }
 
     fn set_ram_counter(&mut self, spi: &mut SPI, x: u32, y: u32) -> Result<(), Error<S, P, DELAY::Error>> {
-        self.wait_until_idle();
+        self.wait_until_idle()?;
         // x is positioned in bytes, so the last 3 bits which show the position inside a byte in the ram
         // aren't relevant
         self.interface
@@ -355,7 +355,7 @@ where
 
     /// Set your own LUT, this function is also used internally for set_lut
     fn set_lut_helper(&mut self, spi: &mut SPI, buffer: &[u8]) -> Result<(), Error<S, P, DELAY::Error>> {
-        self.wait_until_idle();
+        self.wait_until_idle()?;
         assert!(buffer.len() == 30);
         self.interface
             .cmd_with_data(spi, Command::WriteLutRegister, buffer)?;

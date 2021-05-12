@@ -119,7 +119,7 @@ where
         // power on
         self.command(spi, Command::PowerOn)?;
         delay.try_delay_ms(5).map_err(Error::DelayError)?;
-        self.wait_until_idle();
+        self.wait_until_idle()?;
 
         // set the panel settings
         self.cmd_with_data(spi, Command::PanelSetting, &[0x3F])?;
@@ -141,7 +141,7 @@ where
 
         self.set_lut(spi, None)?;
 
-        self.wait_until_idle();
+        self.wait_until_idle()?;
         Ok(())
     }
 }
@@ -184,7 +184,7 @@ where
     }
 
     fn sleep(&mut self, spi: &mut SPI, _delay: &mut DELAY) -> Result<(), Error<S, P, DELAY::Error>> {
-        self.wait_until_idle();
+        self.wait_until_idle()?;
         self.interface
             .cmd_with_data(spi, Command::VcomAndDataIntervalSetting, &[0x17])?; //border floating
         self.command(spi, Command::VcmDcSetting)?; // VCOM to 0V
@@ -196,7 +196,7 @@ where
         }
 
         self.command(spi, Command::PowerOff)?;
-        self.wait_until_idle();
+        self.wait_until_idle()?;
         self.interface
             .cmd_with_data(spi, Command::DeepSleep, &[0xA5])?;
         Ok(())
@@ -208,7 +208,7 @@ where
         buffer: &[u8],
         _delay: &mut DELAY,
     ) -> Result<(), Error<S, P, DELAY::Error>> {
-        self.wait_until_idle();
+        self.wait_until_idle()?;
         let color_value = self.color.get_byte_value();
 
         self.interface.cmd(spi, Command::DataStartTransmission1)?;
@@ -229,7 +229,7 @@ where
         width: u32,
         height: u32,
     ) -> Result<(), Error<S, P, DELAY::Error>> {
-        self.wait_until_idle();
+        self.wait_until_idle()?;
         if buffer.len() as u32 != width / 8 * height {
             //TODO: panic!! or sth like that
             //return Err("Wrong buffersize");
@@ -267,7 +267,7 @@ where
     }
 
     fn display_frame(&mut self, spi: &mut SPI, _delay: &mut DELAY) -> Result<(), Error<S, P, DELAY::Error>> {
-        self.wait_until_idle();
+        self.wait_until_idle()?;
         self.command(spi, Command::DisplayRefresh)?;
         Ok(())
     }
@@ -284,7 +284,7 @@ where
     }
 
     fn clear_frame(&mut self, spi: &mut SPI, _delay: &mut DELAY) -> Result<(), Error<S, P, DELAY::Error>> {
-        self.wait_until_idle();
+        self.wait_until_idle()?;
         self.send_resolution(spi)?;
 
         let color_value = self.color.get_byte_value();
@@ -369,8 +369,8 @@ where
         self.interface.cmd_with_data(spi, command, data)
     }
 
-    fn wait_until_idle(&mut self) {
-        let _ = self.interface.wait_until_idle(IS_BUSY_LOW);
+    fn wait_until_idle(&mut self) -> Result<(), Error<S, P, DELAY::Error>> {
+        self.interface.wait_until_idle(IS_BUSY_LOW)
     }
 
     fn send_resolution(&mut self, spi: &mut SPI) -> Result<(), Error<S, P, DELAY::Error>> {
@@ -393,7 +393,7 @@ where
         lut_wb: &[u8],
         lut_bb: &[u8],
     ) -> Result<(), Error<S, P, DELAY::Error>> {
-        self.wait_until_idle();
+        self.wait_until_idle()?;
         // LUT VCOM
         self.cmd_with_data(spi, Command::LutForVcom, lut_vcom)?;
 
@@ -457,7 +457,7 @@ where
         buffer: &[u8],
         _delay: &mut DELAY,
     ) -> Result<(), Error<S, P, DELAY::Error>> {
-        self.wait_until_idle();
+        self.wait_until_idle()?;
 
         self.interface.cmd(spi, Command::DataStartTransmission1)?;
 
@@ -473,7 +473,7 @@ where
         buffer: &[u8],
         _delay: &mut DELAY,
     ) -> Result<(), Error<S, P, DELAY::Error>> {
-        self.wait_until_idle();
+        self.wait_until_idle()?;
         // self.send_resolution(spi)?;
 
         self.interface.cmd(spi, Command::DataStartTransmission2)?;
@@ -509,7 +509,7 @@ where
         width: u32,
         height: u32,
     ) -> Result<(), Error<S, P, DELAY::Error>> {
-        self.wait_until_idle();
+        self.wait_until_idle()?;
 
         if buffer.len() as u32 != width / 8 * height {
             //TODO: panic!! or sth like that
@@ -539,7 +539,7 @@ where
         width: u32,
         height: u32,
     ) -> Result<(), Error<S, P, DELAY::Error>> {
-        self.wait_until_idle();
+        self.wait_until_idle()?;
         if buffer.len() as u32 != width / 8 * height {
             //TODO: panic!! or sth like that
             //return Err("Wrong buffersize");
@@ -563,7 +563,7 @@ where
         width: u32,
         height: u32,
     ) -> Result<(), Error<S, P, DELAY::Error>> {
-        self.wait_until_idle();
+        self.wait_until_idle()?;
         self.send_resolution(spi)?;
 
         let color_value = self.color.get_byte_value();

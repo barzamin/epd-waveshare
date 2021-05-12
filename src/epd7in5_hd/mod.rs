@@ -63,14 +63,14 @@ where
         // and as per specs:
         // https://www.waveshare.com/w/upload/2/27/7inch_HD_e-Paper_Specification.pdf
 
-        self.wait_until_idle();
+        self.wait_until_idle()?;
         self.command(spi, Command::SwReset)?;
-        self.wait_until_idle();
+        self.wait_until_idle()?;
 
         self.cmd_with_data(spi, Command::AutoWriteRed, &[0xF7])?;
-        self.wait_until_idle();
+        self.wait_until_idle()?;
         self.cmd_with_data(spi, Command::AutoWriteBw, &[0xF7])?;
-        self.wait_until_idle();
+        self.wait_until_idle()?;
 
         self.cmd_with_data(spi, Command::SoftStart, &[0xAE, 0xC7, 0xC3, 0xC0, 0x40])?;
 
@@ -88,7 +88,7 @@ where
         self.cmd_with_data(spi, Command::DisplayUpdateControl2, &[0xB1])?;
 
         self.command(spi, Command::MasterActivation)?;
-        self.wait_until_idle();
+        self.wait_until_idle()?;
 
         self.cmd_with_data(spi, Command::SetRamXAc, &[0x00, 0x00])?;
         self.cmd_with_data(spi, Command::SetRamYAc, &[0x00, 0x00])?;
@@ -131,7 +131,7 @@ where
     }
 
     fn sleep(&mut self, spi: &mut SPI, _delay: &mut DELAY) -> Result<(), Error<S, P, DELAY::Error>> {
-        self.wait_until_idle();
+        self.wait_until_idle()?;
         self.cmd_with_data(spi, Command::DeepSleep, &[0x01])?;
         Ok(())
     }
@@ -142,7 +142,7 @@ where
         buffer: &[u8],
         _delay: &mut DELAY,
     ) -> Result<(), Error<S, P, DELAY::Error>> {
-        self.wait_until_idle();
+        self.wait_until_idle()?;
         self.cmd_with_data(spi, Command::SetRamYAc, &[0x00, 0x00])?;
         self.cmd_with_data(spi, Command::WriteRamBw, buffer)?;
         self.cmd_with_data(spi, Command::DisplayUpdateControl2, &[0xF7])?;
@@ -163,7 +163,7 @@ where
 
     fn display_frame(&mut self, spi: &mut SPI, _delay: &mut DELAY) -> Result<(), Error<S, P, DELAY::Error>> {
         self.command(spi, Command::MasterActivation)?;
-        self.wait_until_idle();
+        self.wait_until_idle()?;
         Ok(())
     }
 
@@ -182,7 +182,7 @@ where
         let pixel_count = WIDTH * HEIGHT / 8;
         let background_color_byte = self.color.get_byte_value();
 
-        self.wait_until_idle();
+        self.wait_until_idle()?;
         self.cmd_with_data(spi, Command::SetRamYAc, &[0x00, 0x00])?;
 
         for cmd in &[Command::WriteRamBw, Command::WriteRamRed] {
@@ -193,7 +193,7 @@ where
 
         self.cmd_with_data(spi, Command::DisplayUpdateControl2, &[0xF7])?;
         self.command(spi, Command::MasterActivation)?;
-        self.wait_until_idle();
+        self.wait_until_idle()?;
         Ok(())
     }
 

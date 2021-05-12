@@ -97,9 +97,9 @@ where
                 },
             )?;
         } else {
-            self.wait_until_idle();
+            self.wait_until_idle()?;
             self.command(spi, Command::SwReset)?;
-            self.wait_until_idle();
+            self.wait_until_idle()?;
 
             self.set_driver_output(
                 spi,
@@ -145,7 +145,7 @@ where
             self.set_lut(spi, Some(self.refresh))?;
         }
 
-        self.wait_until_idle();
+        self.wait_until_idle()?;
         Ok(())
     }
 }
@@ -185,7 +185,7 @@ where
     }
 
     fn sleep(&mut self, spi: &mut SPI, _delay: &mut DELAY) -> Result<(), Error<S, P, DELAY::Error>> {
-        self.wait_until_idle();
+        self.wait_until_idle()?;
 
         // All sample code enables and disables analog/clocks...
         self.set_display_update_control_2(
@@ -279,7 +279,7 @@ where
             self.set_display_update_control_2(spi, DisplayUpdateControl2::new().display())?;
         }
         self.command(spi, Command::MasterActivation)?;
-        self.wait_until_idle();
+        self.wait_until_idle()?;
 
         Ok(())
     }
@@ -535,7 +535,7 @@ where
         x: u32,
         y: u32,
     ) -> Result<(), Error<S, P, DELAY::Error>> {
-        self.wait_until_idle();
+        self.wait_until_idle()?;
         self.cmd_with_data(spi, Command::SetRamXAddressCounter, &[(x >> 3) as u8])?;
 
         self.cmd_with_data(

@@ -113,9 +113,9 @@ where
     fn init(&mut self, spi: &mut SPI, delay: &mut DELAY) -> Result<(), Error<S, P, DELAY::Error>> {
         self.interface.reset(delay, 2)?;
 
-        self.wait_until_idle();
+        self.wait_until_idle()?;
         self.interface.cmd(spi, Command::SwReset)?;
-        self.wait_until_idle();
+        self.wait_until_idle()?;
 
         // 3 Databytes:
         // A[7:0]
@@ -137,7 +137,7 @@ where
 
         self.set_ram_counter(spi, 0, 0)?;
 
-        self.wait_until_idle();
+        self.wait_until_idle()?;
         Ok(())
     }
 }
@@ -183,7 +183,7 @@ where
     }
 
     fn sleep(&mut self, spi: &mut SPI, _delay: &mut DELAY) -> Result<(), Error<S, P, DELAY::Error>> {
-        self.wait_until_idle();
+        self.wait_until_idle()?;
         // 0x00 for Normal mode (Power on Reset), 0x01 for Deep Sleep Mode
         self.interface
             .cmd_with_data(spi, Command::DeepSleepMode, &[0x01])?;
@@ -201,7 +201,7 @@ where
         buffer: &[u8],
         _delay: &mut DELAY,
     ) -> Result<(), Error<S, P, DELAY::Error>> {
-        self.wait_until_idle();
+        self.wait_until_idle()?;
         self.interface.cmd_with_data(spi, Command::WriteRam, buffer)
     }
 
@@ -215,7 +215,7 @@ where
         height: u32,
     ) -> Result<(), Error<S, P, DELAY::Error>> {
         //TODO This is copied from epd2in9 but it seems not working. Partial refresh supported by version 2?
-        self.wait_until_idle();
+        self.wait_until_idle()?;
         self.set_ram_area(spi, x, y, x + width, y + height)?;
         self.set_ram_counter(spi, x, y)?;
 
@@ -225,12 +225,12 @@ where
     }
 
     fn display_frame(&mut self, spi: &mut SPI, _delay: &mut DELAY) -> Result<(), Error<S, P, DELAY::Error>> {
-        self.wait_until_idle();
+        self.wait_until_idle()?;
         // Enable clock signal, Enable Analog, Load temperature value, DISPLAY with DISPLAY Mode 1, Disable Analog, Disable OSC
         self.interface
             .cmd_with_data(spi, Command::DisplayUpdateControl2, &[0xF7])?;
         self.interface.cmd(spi, Command::MasterActivation)?;
-        self.wait_until_idle();
+        self.wait_until_idle()?;
         Ok(())
     }
 
@@ -246,7 +246,7 @@ where
     }
 
     fn clear_frame(&mut self, spi: &mut SPI, _delay: &mut DELAY) -> Result<(), Error<S, P, DELAY::Error>> {
-        self.wait_until_idle();
+        self.wait_until_idle()?;
 
         // clear the ram with the background color
         let color = self.background_color.get_byte_value();
@@ -288,8 +288,8 @@ where
     RST: OutputPin<Error=P>,
     DELAY: DelayMs<u8>,
 {
-    fn wait_until_idle(&mut self) {
-        self.interface.wait_until_idle(IS_BUSY_LOW);
+    fn wait_until_idle(&mut self) -> Result<(), Error<S, P, DELAY::Error>> {
+        self.interface.wait_until_idle(IS_BUSY_LOW)
     }
 
     fn use_full_frame(&mut self, spi: &mut SPI) -> Result<(), Error<S, P, DELAY::Error>> {
@@ -333,7 +333,7 @@ where
     }
 
     fn set_ram_counter(&mut self, spi: &mut SPI, x: u32, y: u32) -> Result<(), Error<S, P, DELAY::Error>> {
-        self.wait_until_idle();
+        self.wait_until_idle()?;
         // x is positioned in bytes, so the last 3 bits which show the position inside a byte in the ram
         // aren't relevant
         self.interface
@@ -350,10 +350,10 @@ where
 
     /// Set your own LUT, this function is also used internally for set_lut
     fn set_lut_helper(&mut self, spi: &mut SPI, buffer: &[u8]) -> Result<(), Error<S, P, DELAY::Error>> {
-        self.wait_until_idle();
+        self.wait_until_idle()?;
         self.interface
             .cmd_with_data(spi, Command::WriteLutRegister, buffer)?;
-        self.wait_until_idle();
+        self.wait_until_idle()?;
         Ok(())
     }
 }
@@ -375,7 +375,7 @@ where
         buffer: &[u8],
         _delay: &mut DELAY,
     ) -> Result<(), Error<S, P, DELAY::Error>> {
-        self.wait_until_idle();
+        self.wait_until_idle()?;
         self.interface
             .cmd_with_data(spi, Command::WriteRam, buffer)?;
         self.interface
@@ -389,7 +389,7 @@ where
         buffer: &[u8],
         delay: &mut DELAY,
     ) -> Result<(), Error<S, P, DELAY::Error>> {
-        self.wait_until_idle();
+        self.wait_until_idle()?;
         self.interface.reset(delay, 2)?;
 
         self.set_lut_helper(spi, &LUT_PARTIAL_2IN9)?;
@@ -404,7 +404,7 @@ where
             .cmd_with_data(spi, Command::DisplayUpdateControl2, &[0xC0])?;
         self.interface.cmd(spi, Command::MasterActivation)?;
 
-        self.wait_until_idle();
+        self.wait_until_idle()?;
 
         self.use_full_frame(spi)?;
 
@@ -415,11 +415,11 @@ where
 
     /// For a quick refresh of the new updated frame. To be used immediately after `update_new_frame`
     fn display_new_frame(&mut self, spi: &mut SPI, _delay: &mut DELAY) -> Result<(), Error<S, P, DELAY::Error>> {
-        self.wait_until_idle();
+        self.wait_until_idle()?;
         self.interface
             .cmd_with_data(spi, Command::DisplayUpdateControl2, &[0x0F])?;
         self.interface.cmd(spi, Command::MasterActivation)?;
-        self.wait_until_idle();
+        self.wait_until_idle()?;
         Ok(())
     }
 
