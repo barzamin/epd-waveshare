@@ -172,7 +172,7 @@ where
     /// properly with 2ms
     pub(crate) fn reset(&mut self, delay: &mut DELAY, duration: u8) -> Result<(), Error<S, P, DELAY::Error>> {
         let _ = self.rst.try_set_high().map_err(Error::PinError)?;
-        delay.try_delay_ms(10).map_err(Error::DelayError)?;
+        delay.try_delay_ms(200).map_err(Error::DelayError)?;
 
         let _ = self.rst.try_set_low().map_err(Error::PinError)?;
         delay.try_delay_ms(duration).map_err(Error::DelayError)?;
