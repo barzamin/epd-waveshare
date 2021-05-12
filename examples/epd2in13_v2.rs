@@ -23,7 +23,7 @@ use linux_embedded_hal::{CdevPin, Delay, Spidev, gpio_cdev::{Chip, LineRequestFl
 fn main() -> Result<(), std::io::Error> {
     // Configure SPI
     // Settings are taken from
-    let mut spi = Spidev::open("/dev/spidev0.0").expect("spidev directory");
+    let mut spi = Spidev::open("/dev/spidev0.1").expect("spidev directory");
     let options = SpidevOptions::new()
         .bits_per_word(8)
         .max_speed_hz(4_000_000)
@@ -34,28 +34,28 @@ fn main() -> Result<(), std::io::Error> {
     // Configure Digital I/O Pin to be used as Chip Select for SPI
     let mut chip = Chip::new("/dev/gpiochip0").expect("chip");
     let cs = CdevPin::new(
-        chip.get_line(26) //BCM7 CE0
+        chip.get_line(8)
             .expect("cs line")
             .request(LineRequestFlags::OUTPUT, 1, "cs export")
             .expect("cs request"),
     ).expect("cs pin");
 
     let busy = CdevPin::new(
-        chip.get_line(5) //pin 29
+        chip.get_line(24)
             .expect("busy line")
             .request(LineRequestFlags::INPUT, 0, "busy export")
             .expect("busy request"),
     ).expect("busy pin");
 
     let dc = CdevPin::new(
-        chip.get_line(6) //pin 31 //bcm6
+        chip.get_line(25)
             .expect("dc line")
             .request(LineRequestFlags::OUTPUT, 1, "dc export")
             .expect("dc request"),
     ).expect("dc pin");
 
     let rst = CdevPin::new(
-        chip.get_line(16) //pin 36 //bcm16
+        chip.get_line(17)
             .expect("rst line")
             .request(LineRequestFlags::OUTPUT, 1, "rst export")
             .expect("rst request"),
