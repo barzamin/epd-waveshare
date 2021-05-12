@@ -224,7 +224,7 @@ where
         unimplemented!();
     }
 
-    fn is_busy(&self) -> bool {
+    fn is_busy(&self) -> Result<bool, Error<S, P, DELAY::Error>> {
         self.interface.is_busy(IS_BUSY_LOW)
     }
 }

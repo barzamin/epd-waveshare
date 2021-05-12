@@ -234,7 +234,7 @@ where
     /// This is normally handled by the more complicated commands themselves,
     /// but in the case you send data and commands directly you might need to check
     /// if the device is still busy
-    fn is_busy(&self) -> bool;
+    fn is_busy(&self) -> Result<bool, Error<S, P, DELAY::Error>>;
 }
 
 /// Allows quick refresh support for displays that support it; lets you send both

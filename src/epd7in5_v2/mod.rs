@@ -198,7 +198,7 @@ where
         unimplemented!();
     }
 
-    fn is_busy(&self) -> bool {
+    fn is_busy(&self) -> Result<bool, Error<S, P, DELAY::Error>> {
         self.interface.is_busy(IS_BUSY_LOW)
     }
 }
@@ -230,7 +230,7 @@ where
     }
 
     fn wait_until_idle(&mut self, spi: &mut SPI, delay: &mut DELAY) -> Result<(), Error<S, P, DELAY::Error>> {
-        while self.interface.is_busy(IS_BUSY_LOW) {
+        while self.interface.is_busy(IS_BUSY_LOW)? {
             self.interface.cmd(spi, Command::GetStatus)?;
             delay.try_delay_ms(20).map_err(Error::DelayError)?;
         }

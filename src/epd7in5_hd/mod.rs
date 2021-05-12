@@ -221,7 +221,7 @@ where
         unimplemented!();
     }
 
-    fn is_busy(&self) -> bool {
+    fn is_busy(&self) -> Result<bool, Error<S, P, DELAY::Error>> {
         self.interface.is_busy(IS_BUSY_LOW)
     }
 }
@@ -248,7 +248,7 @@ where
         self.interface.cmd_with_data(spi, command, data)
     }
 
-    fn wait_until_idle(&mut self) {
+    fn wait_until_idle(&mut self) -> Result<(), Error<S, P, DELAY::Error>> {
         self.interface.wait_until_idle(IS_BUSY_LOW)
     }
 }

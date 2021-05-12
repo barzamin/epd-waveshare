@@ -72,7 +72,7 @@ where
 
         if self.refresh == RefreshLut::Quick {
             self.set_vcom_register(spi, (-9).vcom())?;
-            self.wait_until_idle();
+            self.wait_until_idle()?;
 
             self.set_lut(spi, Some(self.refresh))?;
 
@@ -86,7 +86,7 @@ where
                 DisplayUpdateControl2::new().enable_analog().enable_clock(),
             )?;
             self.command(spi, Command::MasterActivation)?;
-            self.wait_until_idle();
+            self.wait_until_idle()?;
 
             self.set_border_waveform(
                 spi,
@@ -356,7 +356,7 @@ where
         self.cmd_with_data(spi, Command::WriteLutRegister, buffer)
     }
 
-    fn is_busy(&self) -> bool {
+    fn is_busy(&self) -> Result<bool, Error<S, P, DELAY::Error>> {
         self.interface.is_busy(IS_BUSY_LOW)
     }
 }
@@ -559,8 +559,8 @@ where
         self.interface.cmd_with_data(spi, command, data)
     }
 
-    fn wait_until_idle(&mut self) {
-        let _ = self.interface.wait_until_idle(IS_BUSY_LOW);
+    fn wait_until_idle(&mut self) -> Result<(), Error<S, P, DELAY::Error>> {
+        self.interface.wait_until_idle(IS_BUSY_LOW)
     }
 }
 

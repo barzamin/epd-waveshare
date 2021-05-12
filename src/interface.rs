@@ -133,14 +133,16 @@ where
     ///
     /// Most likely there was a mistake with the 2in9 busy connection
     /// //TODO: use the #cfg feature to make this compile the right way for the certain types
-    pub(crate) fn wait_until_idle(&mut self, is_busy_low: bool) {
+    pub(crate) fn wait_until_idle(&mut self, is_busy_low: bool) -> Result<(), Error<S, P, DELAY::Error>> {
         // //tested: worked without the delay for all tested devices
         // //self.try_delay_ms(1);
-        while self.is_busy(is_busy_low) {
+        while self.is_busy(is_busy_low)? {
             // //tested: REMOVAL of DELAY: it's only waiting for the signal anyway and should continue work asap
             // //old: shorten the time? it was 100 in the beginning
             // //self.try_delay_ms(5);
         }
+
+        Ok(())
     }
 
     /// Checks if device is still busy
@@ -156,9 +158,9 @@ where
     ///
     /// Most likely there was a mistake with the 2in9 busy connection
     /// //TODO: use the #cfg feature to make this compile the right way for the certain types
-    pub(crate) fn is_busy(&self, is_busy_low: bool) -> bool {
-        (is_busy_low && self.busy.try_is_low().unwrap_or(false))
-            || (!is_busy_low && self.busy.try_is_high().unwrap_or(false))
+    pub(crate) fn is_busy(&self, is_busy_low: bool) -> Result<bool, Error<S, P, DELAY::Error>> {
+        Ok((is_busy_low && self.busy.try_is_low().map_err(Error::PinError)?)
+            || (!is_busy_low && self.busy.try_is_high().map_err(Error::PinError)?))
     }
 
     /// Resets the device.
