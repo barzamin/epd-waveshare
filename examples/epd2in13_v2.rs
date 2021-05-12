@@ -14,7 +14,11 @@ use epd_waveshare::{
     graphics::DisplayRotation,
     prelude::*,
 };
-use linux_embedded_hal::{CdevPin, Delay, Spidev, gpio_cdev::{Chip, LineRequestFlags}, spidev::{self, SpidevOptions}};
+use linux_embedded_hal::{
+    spidev::{self, SpidevOptions},
+    sysfs_gpio::Direction,
+    Delay, Spidev, SysfsPin,
+};
 
 // activate spi, gpio in raspi-config
 // needs to be run with sudo because of some sysfs_gpio permission problems and follow-up timing problems
@@ -32,34 +36,29 @@ fn main() -> Result<(), std::io::Error> {
     spi.configure(&options).expect("spi configuration");
 
     // Configure Digital I/O Pin to be used as Chip Select for SPI
-    let mut chip = Chip::new("/dev/gpiochip0").expect("chip");
-    let cs = CdevPin::new(
-        chip.get_line(8)
-            .expect("cs line")
-            .request(LineRequestFlags::OUTPUT, 1, "cs export")
-            .expect("cs request"),
-    ).expect("cs pin");
+    let cs = SysfsPin::new(26); //BCM7 CE0
+    cs.export().expect("cs export");
+    while !cs.is_exported() {}
+    cs.set_direction(Direction::Out).expect("CS Direction");
+    cs.set_value(1).expect("CS Value set to 1");
 
-    let busy = CdevPin::new(
-        chip.get_line(24)
-            .expect("busy line")
-            .request(LineRequestFlags::INPUT, 0, "busy export")
-            .expect("busy request"),
-    ).expect("busy pin");
+    let busy = SysfsPin::new(5); //pin 29
+    busy.export().expect("busy export");
+    while !busy.is_exported() {}
+    busy.set_direction(Direction::In).expect("busy Direction");
+    //busy.set_value(1).expect("busy Value set to 1");
 
-    let dc = CdevPin::new(
-        chip.get_line(25)
-            .expect("dc line")
-            .request(LineRequestFlags::OUTPUT, 1, "dc export")
-            .expect("dc request"),
-    ).expect("dc pin");
+    let dc = SysfsPin::new(6); //pin 31 //bcm6
+    dc.export().expect("dc export");
+    while !dc.is_exported() {}
+    dc.set_direction(Direction::Out).expect("dc Direction");
+    dc.set_value(1).expect("dc Value set to 1");
 
-    let rst = CdevPin::new(
-        chip.get_line(17)
-            .expect("rst line")
-            .request(LineRequestFlags::OUTPUT, 1, "rst export")
-            .expect("rst request"),
-    ).expect("rst pin");
+    let rst = SysfsPin::new(16); //pin 36 //bcm16
+    rst.export().expect("rst export");
+    while !rst.is_exported() {}
+    rst.set_direction(Direction::Out).expect("rst Direction");
+    rst.set_value(1).expect("rst Value set to 1");
 
     let mut delay = Delay {};
 
@@ -81,7 +80,9 @@ fn main() -> Result<(), std::io::Error> {
     display.set_rotation(DisplayRotation::Rotate270);
     draw_text(&mut display, "Rotate 270!", 5, 50);
 
-    epd2in13.update_frame(&mut spi, &display.buffer(), &mut delay).expect("update frame");
+    epd2in13
+        .update_frame(&mut spi, &display.buffer(), &mut delay)
+        .expect("update frame");
     epd2in13
         .display_frame(&mut spi, &mut delay)
         .expect("display frame new graphics");
