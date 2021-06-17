@@ -90,7 +90,7 @@ fn main() -> Result<(), std::io::Error> {
 
     // Display updated frame
     epd.display_frame(&mut spi, &mut delay)?;
-    delay.delay_ms(5000u16);
+    delay.try_delay_ms(5000u16)?;
 
     // Set the EPD to sleep
     epd.sleep(&mut spi, &mut delay)?;

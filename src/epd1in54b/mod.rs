@@ -2,7 +2,7 @@
 
 use embedded_hal::{
     blocking::{delay::*, spi::Write},
-    digital::v2::*,
+    digital::*,
 };
 
 use crate::interface::DisplayInterface;
@@ -22,6 +22,7 @@ pub const HEIGHT: u32 = 200;
 pub const DEFAULT_BACKGROUND_COLOR: Color = Color::White;
 const IS_BUSY_LOW: bool = true;
 
+use crate::Error;
 use crate::color::Color;
 
 pub(crate) mod command;
@@ -38,18 +39,18 @@ pub struct Epd1in54b<SPI, CS, BUSY, DC, RST, DELAY> {
     color: Color,
 }
 
-impl<SPI, CS, BUSY, DC, RST, DELAY> InternalWiAdditions<SPI, CS, BUSY, DC, RST, DELAY>
+impl<S, P, SPI, CS, BUSY, DC, RST, DELAY> InternalWiAdditions<S, P, SPI, CS, BUSY, DC, RST, DELAY>
     for Epd1in54b<SPI, CS, BUSY, DC, RST, DELAY>
 where
-    SPI: Write<u8>,
-    CS: OutputPin,
-    BUSY: InputPin,
-    DC: OutputPin,
-    RST: OutputPin,
+    SPI: Write<u8, Error=S>,
+    CS: OutputPin<Error=P>,
+    BUSY: InputPin<Error=P>,
+    DC: OutputPin<Error=P>,
+    RST: OutputPin<Error=P>,
     DELAY: DelayMs<u8>,
 {
-    fn init(&mut self, spi: &mut SPI, delay: &mut DELAY) -> Result<(), SPI::Error> {
-        self.interface.reset(delay, 10);
+    fn init(&mut self, spi: &mut SPI, delay: &mut DELAY) -> Result<(), Error<S, P, DELAY::Error>> {
+        self.interface.reset(delay, 10)?;
 
         // set the power settings
         self.interface
@@ -61,7 +62,7 @@ where
 
         // power on
         self.command(spi, Command::PowerOn)?;
-        delay.delay_ms(5);
+        delay.try_delay_ms(5).map_err(Error::<S, P, DELAY::Error>::DelayError)?;
         self.wait_until_idle();
 
         // set the panel settings
@@ -85,14 +86,14 @@ where
     }
 }
 
-impl<SPI, CS, BUSY, DC, RST, DELAY> WaveshareThreeColorDisplay<SPI, CS, BUSY, DC, RST, DELAY>
+impl<S, P, SPI, CS, BUSY, DC, RST, DELAY> WaveshareThreeColorDisplay<S, P, SPI, CS, BUSY, DC, RST, DELAY>
     for Epd1in54b<SPI, CS, BUSY, DC, RST, DELAY>
 where
-    SPI: Write<u8>,
-    CS: OutputPin,
-    BUSY: InputPin,
-    DC: OutputPin,
-    RST: OutputPin,
+    SPI: Write<u8, Error=S>,
+    CS: OutputPin<Error=P>,
+    BUSY: InputPin<Error=P>,
+    DC: OutputPin<Error=P>,
+    RST: OutputPin<Error=P>,
     DELAY: DelayMs<u8>,
 {
     fn update_color_frame(
@@ -100,12 +101,12 @@ where
         spi: &mut SPI,
         black: &[u8],
         chromatic: &[u8],
-    ) -> Result<(), SPI::Error> {
+    ) -> Result<(), Error<S, P, DELAY::Error>> {
         self.update_achromatic_frame(spi, black)?;
         self.update_chromatic_frame(spi, chromatic)
     }
 
-    fn update_achromatic_frame(&mut self, spi: &mut SPI, black: &[u8]) -> Result<(), SPI::Error> {
+    fn update_achromatic_frame(&mut self, spi: &mut SPI, black: &[u8]) -> Result<(), Error<S, P, DELAY::Error>> {
         self.wait_until_idle();
         self.send_resolution(spi)?;
 
@@ -122,21 +123,21 @@ where
         &mut self,
         spi: &mut SPI,
         chromatic: &[u8],
-    ) -> Result<(), SPI::Error> {
+    ) -> Result<(), Error<S, P, DELAY::Error>> {
         self.interface.cmd(spi, Command::DataStartTransmission2)?;
         self.interface.data(spi, chromatic)?;
         Ok(())
     }
 }
 
-impl<SPI, CS, BUSY, DC, RST, DELAY> WaveshareDisplay<SPI, CS, BUSY, DC, RST, DELAY>
+impl<S, P, SPI, CS, BUSY, DC, RST, DELAY> WaveshareDisplay<S, P, SPI, CS, BUSY, DC, RST, DELAY>
     for Epd1in54b<SPI, CS, BUSY, DC, RST, DELAY>
 where
-    SPI: Write<u8>,
-    CS: OutputPin,
-    BUSY: InputPin,
-    DC: OutputPin,
-    RST: OutputPin,
+    SPI: Write<u8, Error=S>,
+    CS: OutputPin<Error=P>,
+    BUSY: InputPin<Error=P>,
+    DC: OutputPin<Error=P>,
+    RST: OutputPin<Error=P>,
     DELAY: DelayMs<u8>,
 {
     type DisplayColor = Color;
@@ -147,7 +148,7 @@ where
         dc: DC,
         rst: RST,
         delay: &mut DELAY,
-    ) -> Result<Self, SPI::Error> {
+    ) -> Result<Self, Error<S, P, DELAY::Error>> {
         let interface = DisplayInterface::new(cs, busy, dc, rst);
         let color = DEFAULT_BACKGROUND_COLOR;
 
@@ -158,7 +159,7 @@ where
         Ok(epd)
     }
 
-    fn sleep(&mut self, spi: &mut SPI, _delay: &mut DELAY) -> Result<(), SPI::Error> {
+    fn sleep(&mut self, spi: &mut SPI, _delay: &mut DELAY) -> Result<(), Error<S, P, DELAY::Error>> {
         self.wait_until_idle();
         self.interface
             .cmd_with_data(spi, Command::VcomAndDataIntervalSetting, &[0x17])?; //border floating
@@ -178,7 +179,7 @@ where
         Ok(())
     }
 
-    fn wake_up(&mut self, spi: &mut SPI, delay: &mut DELAY) -> Result<(), SPI::Error> {
+    fn wake_up(&mut self, spi: &mut SPI, delay: &mut DELAY) -> Result<(), Error<S, P, DELAY::Error>> {
         self.init(spi, delay)
     }
 
@@ -203,7 +204,7 @@ where
         spi: &mut SPI,
         buffer: &[u8],
         _delay: &mut DELAY,
-    ) -> Result<(), SPI::Error> {
+    ) -> Result<(), Error<S, P, DELAY::Error>> {
         self.wait_until_idle();
         self.send_resolution(spi)?;
 
@@ -237,11 +238,11 @@ where
         y: u32,
         width: u32,
         height: u32,
-    ) -> Result<(), SPI::Error> {
+    ) -> Result<(), Error<S, P, DELAY::Error>> {
         unimplemented!()
     }
 
-    fn display_frame(&mut self, spi: &mut SPI, _delay: &mut DELAY) -> Result<(), SPI::Error> {
+    fn display_frame(&mut self, spi: &mut SPI, _delay: &mut DELAY) -> Result<(), Error<S, P, DELAY::Error>> {
         self.wait_until_idle();
         self.command(spi, Command::DisplayRefresh)?;
         Ok(())
@@ -252,13 +253,13 @@ where
         spi: &mut SPI,
         buffer: &[u8],
         delay: &mut DELAY,
-    ) -> Result<(), SPI::Error> {
+    ) -> Result<(), Error<S, P, DELAY::Error>> {
         self.update_frame(spi, buffer, delay)?;
         self.display_frame(spi, delay)?;
         Ok(())
     }
 
-    fn clear_frame(&mut self, spi: &mut SPI, _delay: &mut DELAY) -> Result<(), SPI::Error> {
+    fn clear_frame(&mut self, spi: &mut SPI, _delay: &mut DELAY) -> Result<(), Error<S, P, DELAY::Error>> {
         self.wait_until_idle();
         self.send_resolution(spi)?;
 
@@ -282,7 +283,7 @@ where
         &mut self,
         spi: &mut SPI,
         _refresh_rate: Option<RefreshLut>,
-    ) -> Result<(), SPI::Error> {
+    ) -> Result<(), Error<S, P, DELAY::Error>> {
         self.interface
             .cmd_with_data(spi, Command::LutForVcom, LUT_VCOM0)?;
         self.interface
@@ -306,20 +307,20 @@ where
     }
 }
 
-impl<SPI, CS, BUSY, DC, RST, DELAY> Epd1in54b<SPI, CS, BUSY, DC, RST, DELAY>
+impl<S, P, SPI, CS, BUSY, DC, RST, DELAY> Epd1in54b<SPI, CS, BUSY, DC, RST, DELAY>
 where
-    SPI: Write<u8>,
-    CS: OutputPin,
-    BUSY: InputPin,
-    DC: OutputPin,
-    RST: OutputPin,
+    SPI: Write<u8, Error=S>,
+    CS: OutputPin<Error=P>,
+    BUSY: InputPin<Error=P>,
+    DC: OutputPin<Error=P>,
+    RST: OutputPin<Error=P>,
     DELAY: DelayMs<u8>,
 {
-    fn command(&mut self, spi: &mut SPI, command: Command) -> Result<(), SPI::Error> {
+    fn command(&mut self, spi: &mut SPI, command: Command) -> Result<(), Error<S, P, DELAY::Error>> {
         self.interface.cmd(spi, command)
     }
 
-    fn send_data(&mut self, spi: &mut SPI, data: &[u8]) -> Result<(), SPI::Error> {
+    fn send_data(&mut self, spi: &mut SPI, data: &[u8]) -> Result<(), Error<S, P, DELAY::Error>> {
         self.interface.data(spi, data)
     }
 
@@ -328,7 +329,7 @@ where
         spi: &mut SPI,
         command: Command,
         data: &[u8],
-    ) -> Result<(), SPI::Error> {
+    ) -> Result<(), Error<S, P, DELAY::Error>> {
         self.interface.cmd_with_data(spi, command, data)
     }
 
@@ -336,7 +337,7 @@ where
         let _ = self.interface.wait_until_idle(IS_BUSY_LOW);
     }
 
-    fn send_resolution(&mut self, spi: &mut SPI) -> Result<(), SPI::Error> {
+    fn send_resolution(&mut self, spi: &mut SPI) -> Result<(), Error<S, P, DELAY::Error>> {
         let w = self.width();
         let h = self.height();
 

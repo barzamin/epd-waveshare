@@ -51,9 +51,10 @@
 
 use embedded_hal::{
     blocking::{delay::*, spi::Write},
-    digital::v2::*,
+    digital::*,
 };
 
+use crate::Error;
 use crate::interface::DisplayInterface;
 use crate::traits::{InternalWiAdditions, QuickRefresh, RefreshLut, WaveshareDisplay};
 
@@ -90,19 +91,19 @@ pub struct Epd4in2<SPI, CS, BUSY, DC, RST, DELAY> {
     refresh: RefreshLut,
 }
 
-impl<SPI, CS, BUSY, DC, RST, DELAY> InternalWiAdditions<SPI, CS, BUSY, DC, RST, DELAY>
+impl<S, P, SPI, CS, BUSY, DC, RST, DELAY> InternalWiAdditions<S, P, SPI, CS, BUSY, DC, RST, DELAY>
     for Epd4in2<SPI, CS, BUSY, DC, RST, DELAY>
 where
-    SPI: Write<u8>,
-    CS: OutputPin,
-    BUSY: InputPin,
-    DC: OutputPin,
-    RST: OutputPin,
+    SPI: Write<u8, Error=S>,
+    CS: OutputPin<Error=P>,
+    BUSY: InputPin<Error=P>,
+    DC: OutputPin<Error=P>,
+    RST: OutputPin<Error=P>,
     DELAY: DelayMs<u8>,
 {
-    fn init(&mut self, spi: &mut SPI, delay: &mut DELAY) -> Result<(), SPI::Error> {
+    fn init(&mut self, spi: &mut SPI, delay: &mut DELAY) -> Result<(), Error<S, P, DELAY::Error>> {
         // reset the device
-        self.interface.reset(delay, 10);
+        self.interface.reset(delay, 10)?;
 
         // set the power settings
         self.interface.cmd_with_data(
@@ -117,7 +118,7 @@ where
 
         // power on
         self.command(spi, Command::PowerOn)?;
-        delay.delay_ms(5);
+        delay.try_delay_ms(5).map_err(Error::DelayError)?;
         self.wait_until_idle();
 
         // set the panel settings
@@ -145,14 +146,14 @@ where
     }
 }
 
-impl<SPI, CS, BUSY, DC, RST, DELAY> WaveshareDisplay<SPI, CS, BUSY, DC, RST, DELAY>
+impl<S, P, SPI, CS, BUSY, DC, RST, DELAY> WaveshareDisplay<S, P, SPI, CS, BUSY, DC, RST, DELAY>
     for Epd4in2<SPI, CS, BUSY, DC, RST, DELAY>
 where
-    SPI: Write<u8>,
-    CS: OutputPin,
-    BUSY: InputPin,
-    DC: OutputPin,
-    RST: OutputPin,
+    SPI: Write<u8, Error=S>,
+    CS: OutputPin<Error=P>,
+    BUSY: InputPin<Error=P>,
+    DC: OutputPin<Error=P>,
+    RST: OutputPin<Error=P>,
     DELAY: DelayMs<u8>,
 {
     type DisplayColor = Color;
@@ -163,7 +164,7 @@ where
         dc: DC,
         rst: RST,
         delay: &mut DELAY,
-    ) -> Result<Self, SPI::Error> {
+    ) -> Result<Self, Error<S, P, DELAY::Error>> {
         let interface = DisplayInterface::new(cs, busy, dc, rst);
         let color = DEFAULT_BACKGROUND_COLOR;
 
@@ -178,11 +179,11 @@ where
         Ok(epd)
     }
 
-    fn wake_up(&mut self, spi: &mut SPI, delay: &mut DELAY) -> Result<(), SPI::Error> {
+    fn wake_up(&mut self, spi: &mut SPI, delay: &mut DELAY) -> Result<(), Error<S, P, DELAY::Error>> {
         self.init(spi, delay)
     }
 
-    fn sleep(&mut self, spi: &mut SPI, _delay: &mut DELAY) -> Result<(), SPI::Error> {
+    fn sleep(&mut self, spi: &mut SPI, _delay: &mut DELAY) -> Result<(), Error<S, P, DELAY::Error>> {
         self.wait_until_idle();
         self.interface
             .cmd_with_data(spi, Command::VcomAndDataIntervalSetting, &[0x17])?; //border floating
@@ -206,7 +207,7 @@ where
         spi: &mut SPI,
         buffer: &[u8],
         _delay: &mut DELAY,
-    ) -> Result<(), SPI::Error> {
+    ) -> Result<(), Error<S, P, DELAY::Error>> {
         self.wait_until_idle();
         let color_value = self.color.get_byte_value();
 
@@ -227,7 +228,7 @@ where
         y: u32,
         width: u32,
         height: u32,
-    ) -> Result<(), SPI::Error> {
+    ) -> Result<(), Error<S, P, DELAY::Error>> {
         self.wait_until_idle();
         if buffer.len() as u32 != width / 8 * height {
             //TODO: panic!! or sth like that
@@ -265,7 +266,7 @@ where
         Ok(())
     }
 
-    fn display_frame(&mut self, spi: &mut SPI, _delay: &mut DELAY) -> Result<(), SPI::Error> {
+    fn display_frame(&mut self, spi: &mut SPI, _delay: &mut DELAY) -> Result<(), Error<S, P, DELAY::Error>> {
         self.wait_until_idle();
         self.command(spi, Command::DisplayRefresh)?;
         Ok(())
@@ -276,13 +277,13 @@ where
         spi: &mut SPI,
         buffer: &[u8],
         delay: &mut DELAY,
-    ) -> Result<(), SPI::Error> {
+    ) -> Result<(), Error<S, P, DELAY::Error>> {
         self.update_frame(spi, buffer, delay)?;
         self.command(spi, Command::DisplayRefresh)?;
         Ok(())
     }
 
-    fn clear_frame(&mut self, spi: &mut SPI, _delay: &mut DELAY) -> Result<(), SPI::Error> {
+    fn clear_frame(&mut self, spi: &mut SPI, _delay: &mut DELAY) -> Result<(), Error<S, P, DELAY::Error>> {
         self.wait_until_idle();
         self.send_resolution(spi)?;
 
@@ -318,7 +319,7 @@ where
         &mut self,
         spi: &mut SPI,
         refresh_rate: Option<RefreshLut>,
-    ) -> Result<(), SPI::Error> {
+    ) -> Result<(), Error<S, P, DELAY::Error>> {
         if let Some(refresh_lut) = refresh_rate {
             self.refresh = refresh_lut;
         }
@@ -342,20 +343,20 @@ where
     }
 }
 
-impl<SPI, CS, BUSY, DC, RST, DELAY> Epd4in2<SPI, CS, BUSY, DC, RST, DELAY>
+impl<S, P, SPI, CS, BUSY, DC, RST, DELAY> Epd4in2<SPI, CS, BUSY, DC, RST, DELAY>
 where
-    SPI: Write<u8>,
-    CS: OutputPin,
-    BUSY: InputPin,
-    DC: OutputPin,
-    RST: OutputPin,
+    SPI: Write<u8, Error=S>,
+    CS: OutputPin<Error=P>,
+    BUSY: InputPin<Error=P>,
+    DC: OutputPin<Error=P>,
+    RST: OutputPin<Error=P>,
     DELAY: DelayMs<u8>,
 {
-    fn command(&mut self, spi: &mut SPI, command: Command) -> Result<(), SPI::Error> {
+    fn command(&mut self, spi: &mut SPI, command: Command) -> Result<(), Error<S, P, DELAY::Error>> {
         self.interface.cmd(spi, command)
     }
 
-    fn send_data(&mut self, spi: &mut SPI, data: &[u8]) -> Result<(), SPI::Error> {
+    fn send_data(&mut self, spi: &mut SPI, data: &[u8]) -> Result<(), Error<S, P, DELAY::Error>> {
         self.interface.data(spi, data)
     }
 
@@ -364,7 +365,7 @@ where
         spi: &mut SPI,
         command: Command,
         data: &[u8],
-    ) -> Result<(), SPI::Error> {
+    ) -> Result<(), Error<S, P, DELAY::Error>> {
         self.interface.cmd_with_data(spi, command, data)
     }
 
@@ -372,7 +373,7 @@ where
         let _ = self.interface.wait_until_idle(IS_BUSY_LOW);
     }
 
-    fn send_resolution(&mut self, spi: &mut SPI) -> Result<(), SPI::Error> {
+    fn send_resolution(&mut self, spi: &mut SPI) -> Result<(), Error<S, P, DELAY::Error>> {
         let w = self.width();
         let h = self.height();
 
@@ -391,7 +392,7 @@ where
         lut_bw: &[u8],
         lut_wb: &[u8],
         lut_bb: &[u8],
-    ) -> Result<(), SPI::Error> {
+    ) -> Result<(), Error<S, P, DELAY::Error>> {
         self.wait_until_idle();
         // LUT VCOM
         self.cmd_with_data(spi, Command::LutForVcom, lut_vcom)?;
@@ -419,7 +420,7 @@ where
         y: u32,
         width: u32,
         height: u32,
-    ) -> Result<(), SPI::Error> {
+    ) -> Result<(), Error<S, P, DELAY::Error>> {
         self.send_data(spi, &[(x >> 8) as u8])?;
         let tmp = x & 0xf8;
         self.send_data(spi, &[tmp as u8])?; // x should be the multiple of 8, the last 3 bit will always be ignored
@@ -439,14 +440,14 @@ where
     }
 }
 
-impl<SPI, CS, BUSY, DC, RST, DELAY> QuickRefresh<SPI, CS, BUSY, DC, RST, DELAY>
+impl<S, P, SPI, CS, BUSY, DC, RST, DELAY> QuickRefresh<S, P, SPI, CS, BUSY, DC, RST, DELAY>
     for Epd4in2<SPI, CS, BUSY, DC, RST, DELAY>
 where
-    SPI: Write<u8>,
-    CS: OutputPin,
-    BUSY: InputPin,
-    DC: OutputPin,
-    RST: OutputPin,
+    SPI: Write<u8, Error=S>,
+    CS: OutputPin<Error=P>,
+    BUSY: InputPin<Error=P>,
+    DC: OutputPin<Error=P>,
+    RST: OutputPin<Error=P>,
     DELAY: DelayMs<u8>,
 {
     /// To be followed immediately after by `update_old_frame`.
@@ -455,7 +456,7 @@ where
         spi: &mut SPI,
         buffer: &[u8],
         _delay: &mut DELAY,
-    ) -> Result<(), SPI::Error> {
+    ) -> Result<(), Error<S, P, DELAY::Error>> {
         self.wait_until_idle();
 
         self.interface.cmd(spi, Command::DataStartTransmission1)?;
@@ -471,7 +472,7 @@ where
         spi: &mut SPI,
         buffer: &[u8],
         _delay: &mut DELAY,
-    ) -> Result<(), SPI::Error> {
+    ) -> Result<(), Error<S, P, DELAY::Error>> {
         self.wait_until_idle();
         // self.send_resolution(spi)?;
 
@@ -484,7 +485,7 @@ where
 
     /// This function is not needed for this display
     #[allow(unused)]
-    fn display_new_frame(&mut self, spi: &mut SPI, delay: &mut DELAY) -> Result<(), SPI::Error> {
+    fn display_new_frame(&mut self, spi: &mut SPI, delay: &mut DELAY) -> Result<(), Error<S, P, DELAY::Error>> {
         unimplemented!()
     }
 
@@ -495,7 +496,7 @@ where
         spi: &mut SPI,
         buffer: &[u8],
         delay: &mut DELAY,
-    ) -> Result<(), SPI::Error> {
+    ) -> Result<(), Error<S, P, DELAY::Error>> {
         unimplemented!()
     }
 
@@ -507,7 +508,7 @@ where
         y: u32,
         width: u32,
         height: u32,
-    ) -> Result<(), SPI::Error> {
+    ) -> Result<(), Error<S, P, DELAY::Error>> {
         self.wait_until_idle();
 
         if buffer.len() as u32 != width / 8 * height {
@@ -537,7 +538,7 @@ where
         y: u32,
         width: u32,
         height: u32,
-    ) -> Result<(), SPI::Error> {
+    ) -> Result<(), Error<S, P, DELAY::Error>> {
         self.wait_until_idle();
         if buffer.len() as u32 != width / 8 * height {
             //TODO: panic!! or sth like that
@@ -561,7 +562,7 @@ where
         y: u32,
         width: u32,
         height: u32,
-    ) -> Result<(), SPI::Error> {
+    ) -> Result<(), Error<S, P, DELAY::Error>> {
         self.wait_until_idle();
         self.send_resolution(spi)?;
 

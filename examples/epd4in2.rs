@@ -83,7 +83,7 @@ fn main() -> Result<(), std::io::Error> {
     epd4in2
         .display_frame(&mut spi, &mut delay)
         .expect("display frame new graphics");
-    delay.delay_ms(5000u16);
+    delay.try_delay_ms(5000u16);
 
     println!("Now test new graphics with default rotation and some special stuff");
     display.clear_buffer(Color::White);
@@ -141,7 +141,7 @@ fn main() -> Result<(), std::io::Error> {
             .display_frame(&mut spi, &mut delay)
             .expect("display frame new graphics");
 
-        delay.delay_ms(1_000u16);
+        delay.try_delay_ms(1_000u16);
     }
 
     println!("Finished tests - going to sleep");

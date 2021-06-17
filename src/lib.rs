@@ -124,3 +124,14 @@ pub const SPI_MODE: Mode = Mode {
     phase: Phase::CaptureOnFirstTransition,
     polarity: Polarity::IdleLow,
 };
+
+/// Errors produced by the EPD driver
+#[derive(Debug)]
+pub enum Error<S, P, D> {
+    /// Variant containing a SPI transaction error
+    SPIError(S),
+    /// Variant containing a pin HAL toggle or read error
+    PinError(P),
+    /// An error when delaying
+    DelayError(D),
+}

@@ -12,9 +12,10 @@
 
 use embedded_hal::{
     blocking::{delay::*, spi::Write},
-    digital::v2::{InputPin, OutputPin},
+    digital::{InputPin, OutputPin},
 };
 
+use crate::Error;
 use crate::color::Color;
 use crate::interface::DisplayInterface;
 use crate::traits::{InternalWiAdditions, RefreshLut, WaveshareDisplay};
@@ -44,19 +45,19 @@ pub struct Epd7in5<SPI, CS, BUSY, DC, RST, DELAY> {
     color: Color,
 }
 
-impl<SPI, CS, BUSY, DC, RST, DELAY> InternalWiAdditions<SPI, CS, BUSY, DC, RST, DELAY>
+impl<S, P, SPI, CS, BUSY, DC, RST, DELAY> InternalWiAdditions<S, P, SPI, CS, BUSY, DC, RST, DELAY>
     for Epd7in5<SPI, CS, BUSY, DC, RST, DELAY>
 where
-    SPI: Write<u8>,
-    CS: OutputPin,
-    BUSY: InputPin,
-    DC: OutputPin,
-    RST: OutputPin,
+    SPI: Write<u8, Error=S>,
+    CS: OutputPin<Error=P>,
+    BUSY: InputPin<Error=P>,
+    DC: OutputPin<Error=P>,
+    RST: OutputPin<Error=P>,
     DELAY: DelayMs<u8>,
 {
-    fn init(&mut self, spi: &mut SPI, delay: &mut DELAY) -> Result<(), SPI::Error> {
+    fn init(&mut self, spi: &mut SPI, delay: &mut DELAY) -> Result<(), Error<S, P, DELAY::Error>> {
         // Reset the device
-        self.interface.reset(delay, 2);
+        self.interface.reset(delay, 2)?;
 
         // V2 procedure as described here:
         // https://github.com/waveshare/e-Paper/blob/master/RaspberryPi%26JetsonNano/python/lib/waveshare_epd/epd7in5bc_V2.py
@@ -78,14 +79,14 @@ where
     }
 }
 
-impl<SPI, CS, BUSY, DC, RST, DELAY> WaveshareDisplay<SPI, CS, BUSY, DC, RST, DELAY>
+impl<S, P, SPI, CS, BUSY, DC, RST, DELAY> WaveshareDisplay<S, P, SPI, CS, BUSY, DC, RST, DELAY>
     for Epd7in5<SPI, CS, BUSY, DC, RST, DELAY>
 where
-    SPI: Write<u8>,
-    CS: OutputPin,
-    BUSY: InputPin,
-    DC: OutputPin,
-    RST: OutputPin,
+    SPI: Write<u8, Error=S>,
+    CS: OutputPin<Error=P>,
+    BUSY: InputPin<Error=P>,
+    DC: OutputPin<Error=P>,
+    RST: OutputPin<Error=P>,
     DELAY: DelayMs<u8>,
 {
     type DisplayColor = Color;
@@ -96,7 +97,7 @@ where
         dc: DC,
         rst: RST,
         delay: &mut DELAY,
-    ) -> Result<Self, SPI::Error> {
+    ) -> Result<Self, Error<S, P, DELAY::Error>> {
         let interface = DisplayInterface::new(cs, busy, dc, rst);
         let color = DEFAULT_BACKGROUND_COLOR;
 
@@ -107,11 +108,11 @@ where
         Ok(epd)
     }
 
-    fn wake_up(&mut self, spi: &mut SPI, delay: &mut DELAY) -> Result<(), SPI::Error> {
+    fn wake_up(&mut self, spi: &mut SPI, delay: &mut DELAY) -> Result<(), Error<S, P, DELAY::Error>> {
         self.init(spi, delay)
     }
 
-    fn sleep(&mut self, spi: &mut SPI, delay: &mut DELAY) -> Result<(), SPI::Error> {
+    fn sleep(&mut self, spi: &mut SPI, delay: &mut DELAY) -> Result<(), Error<S, P, DELAY::Error>> {
         self.wait_until_idle(spi, delay)?;
         self.command(spi, Command::PowerOff)?;
         self.wait_until_idle(spi, delay)?;
@@ -124,7 +125,7 @@ where
         spi: &mut SPI,
         buffer: &[u8],
         delay: &mut DELAY,
-    ) -> Result<(), SPI::Error> {
+    ) -> Result<(), Error<S, P, DELAY::Error>> {
         self.wait_until_idle(spi, delay)?;
         self.cmd_with_data(spi, Command::DataStartTransmission2, buffer)?;
         Ok(())
@@ -138,11 +139,11 @@ where
         _y: u32,
         _width: u32,
         _height: u32,
-    ) -> Result<(), SPI::Error> {
+    ) -> Result<(), Error<S, P, DELAY::Error>> {
         unimplemented!();
     }
 
-    fn display_frame(&mut self, spi: &mut SPI, delay: &mut DELAY) -> Result<(), SPI::Error> {
+    fn display_frame(&mut self, spi: &mut SPI, delay: &mut DELAY) -> Result<(), Error<S, P, DELAY::Error>> {
         self.wait_until_idle(spi, delay)?;
         self.command(spi, Command::DisplayRefresh)?;
         Ok(())
@@ -153,13 +154,13 @@ where
         spi: &mut SPI,
         buffer: &[u8],
         delay: &mut DELAY,
-    ) -> Result<(), SPI::Error> {
+    ) -> Result<(), Error<S, P, DELAY::Error>> {
         self.update_frame(spi, buffer, delay)?;
         self.command(spi, Command::DisplayRefresh)?;
         Ok(())
     }
 
-    fn clear_frame(&mut self, spi: &mut SPI, delay: &mut DELAY) -> Result<(), SPI::Error> {
+    fn clear_frame(&mut self, spi: &mut SPI, delay: &mut DELAY) -> Result<(), Error<S, P, DELAY::Error>> {
         self.wait_until_idle(spi, delay)?;
         self.send_resolution(spi)?;
 
@@ -193,7 +194,7 @@ where
         &mut self,
         _spi: &mut SPI,
         _refresh_rate: Option<RefreshLut>,
-    ) -> Result<(), SPI::Error> {
+    ) -> Result<(), Error<S, P, DELAY::Error>> {
         unimplemented!();
     }
 
@@ -202,20 +203,20 @@ where
     }
 }
 
-impl<SPI, CS, BUSY, DC, RST, DELAY> Epd7in5<SPI, CS, BUSY, DC, RST, DELAY>
+impl<S, P, SPI, CS, BUSY, DC, RST, DELAY> Epd7in5<SPI, CS, BUSY, DC, RST, DELAY>
 where
-    SPI: Write<u8>,
-    CS: OutputPin,
-    BUSY: InputPin,
-    DC: OutputPin,
-    RST: OutputPin,
+    SPI: Write<u8, Error=S>,
+    CS: OutputPin<Error=P>,
+    BUSY: InputPin<Error=P>,
+    DC: OutputPin<Error=P>,
+    RST: OutputPin<Error=P>,
     DELAY: DelayMs<u8>,
 {
-    fn command(&mut self, spi: &mut SPI, command: Command) -> Result<(), SPI::Error> {
+    fn command(&mut self, spi: &mut SPI, command: Command) -> Result<(), Error<S, P, DELAY::Error>> {
         self.interface.cmd(spi, command)
     }
 
-    fn send_data(&mut self, spi: &mut SPI, data: &[u8]) -> Result<(), SPI::Error> {
+    fn send_data(&mut self, spi: &mut SPI, data: &[u8]) -> Result<(), Error<S, P, DELAY::Error>> {
         self.interface.data(spi, data)
     }
 
@@ -224,19 +225,19 @@ where
         spi: &mut SPI,
         command: Command,
         data: &[u8],
-    ) -> Result<(), SPI::Error> {
+    ) -> Result<(), Error<S, P, DELAY::Error>> {
         self.interface.cmd_with_data(spi, command, data)
     }
 
-    fn wait_until_idle(&mut self, spi: &mut SPI, delay: &mut DELAY) -> Result<(), SPI::Error> {
+    fn wait_until_idle(&mut self, spi: &mut SPI, delay: &mut DELAY) -> Result<(), Error<S, P, DELAY::Error>> {
         while self.interface.is_busy(IS_BUSY_LOW) {
             self.interface.cmd(spi, Command::GetStatus)?;
-            delay.delay_ms(20);
+            delay.try_delay_ms(20).map_err(Error::DelayError)?;
         }
         Ok(())
     }
 
-    fn send_resolution(&mut self, spi: &mut SPI) -> Result<(), SPI::Error> {
+    fn send_resolution(&mut self, spi: &mut SPI) -> Result<(), Error<S, P, DELAY::Error>> {
         let w = self.width();
         let h = self.height();
 

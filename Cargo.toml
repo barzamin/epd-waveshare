@@ -16,13 +16,13 @@ edition = "2018"
 # travis-ci = { repository = "caemor/epd-waveshare" }
 
 [dependencies]
-embedded-graphics = { version = "0.7.1", optional = true}
-embedded-graphics-core = { version = "0.3.2", optional = true}
-embedded-hal = {version = "0.2.4", features = ["unproven"]}
+embedded-graphics = { version = "0.7.1", optional = true }
+embedded-graphics-core = { version = "0.3.2", optional = true }
+embedded-hal = "=1.0.0-alpha.4"
 bit_field = "0.10.1"
 
 [dev-dependencies]
-linux-embedded-hal = "0.3"
+linux-embedded-hal = { git = "https://github.com/rust-embedded/linux-embedded-hal", rev = "b930d32" }
 embedded-hal-mock = "0.7"
 
 [features]

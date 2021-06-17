@@ -20,7 +20,7 @@
 //!# let mut delay = delay::MockNoop::new();
 //!
 //!// Setup EPD
-//!let mut epd = Epd1in54::new(&mut spi, cs_pin, busy_in, dc, rst, &mut delay)?;
+//!let mut epd = Epd1in54::new(&mut spi, cs_pin<Error=P>, busy_in, dc, rst, &mut delay)?;
 //!
 //!// Use display graphics from embedded-graphics
 //!let mut display = Display1in54::default();
@@ -55,7 +55,7 @@ const IS_BUSY_LOW: bool = false;
 
 use embedded_hal::{
     blocking::{delay::*, spi::Write},
-    digital::v2::*,
+    digital::*,
 };
 
 use crate::type_a::{
@@ -63,6 +63,7 @@ use crate::type_a::{
     constants::{LUT_FULL_UPDATE, LUT_PARTIAL_UPDATE},
 };
 
+use crate::Error;
 use crate::color::Color;
 
 use crate::traits::{RefreshLut, WaveshareDisplay};
@@ -84,17 +85,17 @@ pub struct Epd1in54<SPI, CS, BUSY, DC, RST, DELAY> {
     refresh: RefreshLut,
 }
 
-impl<SPI, CS, BUSY, DC, RST, DELAY> Epd1in54<SPI, CS, BUSY, DC, RST, DELAY>
+impl<S, P, SPI, CS, BUSY, DC, RST, DELAY> Epd1in54<SPI, CS, BUSY, DC, RST, DELAY>
 where
-    SPI: Write<u8>,
-    CS: OutputPin,
-    BUSY: InputPin,
-    DC: OutputPin,
-    RST: OutputPin,
+    SPI: Write<u8, Error=S>,
+    CS: OutputPin<Error=P>,
+    BUSY: InputPin<Error=P>,
+    DC: OutputPin<Error=P>,
+    RST: OutputPin<Error=P>,
     DELAY: DelayMs<u8>,
 {
-    fn init(&mut self, spi: &mut SPI, delay: &mut DELAY) -> Result<(), SPI::Error> {
-        self.interface.reset(delay, 10);
+    fn init(&mut self, spi: &mut SPI, delay: &mut DELAY) -> Result<(), Error<S, P, DELAY::Error>> {
+        self.interface.reset(delay, 10)?;
 
         // 3 Databytes:
         // A[7:0]
@@ -139,14 +140,14 @@ where
     }
 }
 
-impl<SPI, CS, BUSY, DC, RST, E, DELAY> WaveshareDisplay<SPI, CS, BUSY, DC, RST, DELAY>
+impl<S, P, SPI, CS, BUSY, DC, RST, DELAY> WaveshareDisplay<S, P, SPI, CS, BUSY, DC, RST, DELAY>
     for Epd1in54<SPI, CS, BUSY, DC, RST, DELAY>
 where
-    SPI: Write<u8, Error = E>,
-    CS: OutputPin,
-    BUSY: InputPin,
-    DC: OutputPin,
-    RST: OutputPin,
+    SPI: Write<u8, Error=S>,
+    CS: OutputPin<Error=P>,
+    BUSY: InputPin<Error=P>,
+    DC: OutputPin<Error=P>,
+    RST: OutputPin<Error=P>,
     DELAY: DelayMs<u8>,
 {
     type DisplayColor = Color;
@@ -165,7 +166,7 @@ where
         dc: DC,
         rst: RST,
         delay: &mut DELAY,
-    ) -> Result<Self, SPI::Error> {
+    ) -> Result<Self, Error<S, P, DELAY::Error>> {
         let interface = DisplayInterface::new(cs, busy, dc, rst);
 
         let mut epd = Epd1in54 {
@@ -179,11 +180,11 @@ where
         Ok(epd)
     }
 
-    fn wake_up(&mut self, spi: &mut SPI, delay: &mut DELAY) -> Result<(), SPI::Error> {
+    fn wake_up(&mut self, spi: &mut SPI, delay: &mut DELAY) -> Result<(), Error<S, P, DELAY::Error>> {
         self.init(spi, delay)
     }
 
-    fn sleep(&mut self, spi: &mut SPI, _delay: &mut DELAY) -> Result<(), SPI::Error> {
+    fn sleep(&mut self, spi: &mut SPI, _delay: &mut DELAY) -> Result<(), Error<S, P, DELAY::Error>> {
         self.wait_until_idle();
         // 0x00 for Normal mode (Power on Reset), 0x01 for Deep Sleep Mode
         //TODO: is 0x00 needed here or would 0x01 be even more efficient?
@@ -197,7 +198,7 @@ where
         spi: &mut SPI,
         buffer: &[u8],
         _delay: &mut DELAY,
-    ) -> Result<(), SPI::Error> {
+    ) -> Result<(), Error<S, P, DELAY::Error>> {
         self.wait_until_idle();
         self.use_full_frame(spi)?;
         self.interface
@@ -214,7 +215,7 @@ where
         y: u32,
         width: u32,
         height: u32,
-    ) -> Result<(), SPI::Error> {
+    ) -> Result<(), Error<S, P, DELAY::Error>> {
         self.wait_until_idle();
         self.set_ram_area(spi, x, y, x + width, y + height)?;
         self.set_ram_counter(spi, x, y)?;
@@ -224,7 +225,7 @@ where
         Ok(())
     }
 
-    fn display_frame(&mut self, spi: &mut SPI, _delay: &mut DELAY) -> Result<(), SPI::Error> {
+    fn display_frame(&mut self, spi: &mut SPI, _delay: &mut DELAY) -> Result<(), Error<S, P, DELAY::Error>> {
         self.wait_until_idle();
         // enable clock signal, enable cp, display pattern -> 0xC4 (tested with the arduino version)
         //TODO: test control_1 or control_2 with default value 0xFF (from the datasheet)
@@ -243,13 +244,13 @@ where
         spi: &mut SPI,
         buffer: &[u8],
         delay: &mut DELAY,
-    ) -> Result<(), SPI::Error> {
+    ) -> Result<(), Error<S, P, DELAY::Error>> {
         self.update_frame(spi, buffer, delay)?;
         self.display_frame(spi, delay)?;
         Ok(())
     }
 
-    fn clear_frame(&mut self, spi: &mut SPI, _delay: &mut DELAY) -> Result<(), SPI::Error> {
+    fn clear_frame(&mut self, spi: &mut SPI, _delay: &mut DELAY) -> Result<(), Error<S, P, DELAY::Error>> {
         self.wait_until_idle();
         self.use_full_frame(spi)?;
 
@@ -274,7 +275,7 @@ where
         &mut self,
         spi: &mut SPI,
         refresh_rate: Option<RefreshLut>,
-    ) -> Result<(), SPI::Error> {
+    ) -> Result<(), Error<S, P, DELAY::Error>> {
         if let Some(refresh_lut) = refresh_rate {
             self.refresh = refresh_lut;
         }
@@ -289,20 +290,20 @@ where
     }
 }
 
-impl<SPI, CS, BUSY, DC, RST, DELAY> Epd1in54<SPI, CS, BUSY, DC, RST, DELAY>
+impl<S, P, SPI, CS, BUSY, DC, RST, DELAY> Epd1in54<SPI, CS, BUSY, DC, RST, DELAY>
 where
-    SPI: Write<u8>,
-    CS: OutputPin,
-    BUSY: InputPin,
-    DC: OutputPin,
-    RST: OutputPin,
+    SPI: Write<u8, Error=S>,
+    CS: OutputPin<Error=P>,
+    BUSY: InputPin<Error=P>,
+    DC: OutputPin<Error=P>,
+    RST: OutputPin<Error=P>,
     DELAY: DelayMs<u8>,
 {
     fn wait_until_idle(&mut self) {
         let _ = self.interface.wait_until_idle(IS_BUSY_LOW);
     }
 
-    pub(crate) fn use_full_frame(&mut self, spi: &mut SPI) -> Result<(), SPI::Error> {
+    pub(crate) fn use_full_frame(&mut self, spi: &mut SPI) -> Result<(), Error<S, P, DELAY::Error>> {
         // choose full frame/ram
         self.set_ram_area(spi, 0, 0, WIDTH - 1, HEIGHT - 1)?;
 
@@ -317,7 +318,7 @@ where
         start_y: u32,
         end_x: u32,
         end_y: u32,
-    ) -> Result<(), SPI::Error> {
+    ) -> Result<(), Error<S, P, DELAY::Error>> {
         self.wait_until_idle();
         assert!(start_x < end_x);
         assert!(start_y < end_y);
@@ -349,7 +350,7 @@ where
         spi: &mut SPI,
         x: u32,
         y: u32,
-    ) -> Result<(), SPI::Error> {
+    ) -> Result<(), Error<S, P, DELAY::Error>> {
         self.wait_until_idle();
         // x is positioned in bytes, so the last 3 bits which show the position inside a byte in the ram
         // aren't relevant
@@ -365,7 +366,7 @@ where
         Ok(())
     }
 
-    fn set_lut_helper(&mut self, spi: &mut SPI, buffer: &[u8]) -> Result<(), SPI::Error> {
+    fn set_lut_helper(&mut self, spi: &mut SPI, buffer: &[u8]) -> Result<(), Error<S, P, DELAY::Error>> {
         self.wait_until_idle();
         assert!(buffer.len() == 30);
 

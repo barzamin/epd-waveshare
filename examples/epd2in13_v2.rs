@@ -7,17 +7,14 @@ use embedded_graphics::{
     text::{Baseline, Text, TextStyleBuilder},
 };
 use embedded_hal::prelude::*;
+// use embedded_hal::prelude::*;
 use epd_waveshare::{
     color::*,
     epd2in13_v2::{Display2in13, Epd2in13},
     graphics::DisplayRotation,
     prelude::*,
 };
-use linux_embedded_hal::{
-    spidev::{self, SpidevOptions},
-    sysfs_gpio::Direction,
-    Delay, Pin, Spidev,
-};
+use linux_embedded_hal::{CdevPin, Delay, Spidev, gpio_cdev::{Chip, LineRequestFlags}, spidev::{self, SpidevOptions}};
 
 // activate spi, gpio in raspi-config
 // needs to be run with sudo because of some sysfs_gpio permission problems and follow-up timing problems
@@ -35,29 +32,34 @@ fn main() -> Result<(), std::io::Error> {
     spi.configure(&options).expect("spi configuration");
 
     // Configure Digital I/O Pin to be used as Chip Select for SPI
-    let cs = Pin::new(26); //BCM7 CE0
-    cs.export().expect("cs export");
-    while !cs.is_exported() {}
-    cs.set_direction(Direction::Out).expect("CS Direction");
-    cs.set_value(1).expect("CS Value set to 1");
+    let mut chip = Chip::new("/dev/gpiochip0").expect("chip");
+    let cs = CdevPin::new(
+        chip.get_line(26) //BCM7 CE0
+            .expect("cs line")
+            .request(LineRequestFlags::OUTPUT, 1, "cs export")
+            .expect("cs request"),
+    ).expect("cs pin");
 
-    let busy = Pin::new(5); //pin 29
-    busy.export().expect("busy export");
-    while !busy.is_exported() {}
-    busy.set_direction(Direction::In).expect("busy Direction");
-    //busy.set_value(1).expect("busy Value set to 1");
+    let busy = CdevPin::new(
+        chip.get_line(5) //pin 29
+            .expect("busy line")
+            .request(LineRequestFlags::INPUT, 0, "busy export")
+            .expect("busy request"),
+    ).expect("busy pin");
 
-    let dc = Pin::new(6); //pin 31 //bcm6
-    dc.export().expect("dc export");
-    while !dc.is_exported() {}
-    dc.set_direction(Direction::Out).expect("dc Direction");
-    dc.set_value(1).expect("dc Value set to 1");
+    let dc = CdevPin::new(
+        chip.get_line(6) //pin 31 //bcm6
+            .expect("dc line")
+            .request(LineRequestFlags::OUTPUT, 1, "dc export")
+            .expect("dc request"),
+    ).expect("dc pin");
 
-    let rst = Pin::new(16); //pin 36 //bcm16
-    rst.export().expect("rst export");
-    while !rst.is_exported() {}
-    rst.set_direction(Direction::Out).expect("rst Direction");
-    rst.set_value(1).expect("rst Value set to 1");
+    let rst = CdevPin::new(
+        chip.get_line(16) //pin 36 //bcm16
+            .expect("rst line")
+            .request(LineRequestFlags::OUTPUT, 1, "rst export")
+            .expect("rst request"),
+    ).expect("rst pin");
 
     let mut delay = Delay {};
 
@@ -79,11 +81,11 @@ fn main() -> Result<(), std::io::Error> {
     display.set_rotation(DisplayRotation::Rotate270);
     draw_text(&mut display, "Rotate 270!", 5, 50);
 
-    epd2in13.update_frame(&mut spi, &display.buffer(), &mut delay)?;
+    epd2in13.update_frame(&mut spi, &display.buffer(), &mut delay).expect("update frame");
     epd2in13
         .display_frame(&mut spi, &mut delay)
         .expect("display frame new graphics");
-    delay.delay_ms(5000u16);
+    delay.try_delay_ms(5000u16).expect("delay");
 
     //println!("Now test new graphics with default rotation and some special stuff:");
     display.clear_buffer(Color::White);
@@ -135,7 +137,7 @@ fn main() -> Result<(), std::io::Error> {
         epd2in13
             .update_and_display_frame(&mut spi, &display.buffer(), &mut delay)
             .expect("display frame new graphics");
-        delay.delay_ms(1_000u16);
+        delay.try_delay_ms(1_000u16).expect("delay");
     }
 
     // Show a spinning bar without any delay between frames. Shows how «fast»
@@ -155,7 +157,9 @@ fn main() -> Result<(), std::io::Error> {
     }
 
     println!("Finished tests - going to sleep");
-    epd2in13.sleep(&mut spi, &mut delay)
+    epd2in13.sleep(&mut spi, &mut delay).expect("sleep");
+
+    Ok(())
 }
 
 fn draw_text(display: &mut Display2in13, text: &str, x: i32, y: i32) {
